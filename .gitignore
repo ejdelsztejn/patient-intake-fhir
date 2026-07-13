@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+*.log
+
+# Local SFTP dropbox contents (Docker volume) — keep the folder, ignore the data.
+sftp/upload/*
+!sftp/upload/.gitkeep
+
+# Pipeline run artifacts
+out/

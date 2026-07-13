@@ -1,0 +1,35 @@
+{
+  "name": "patient-intake-fhir",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Simulated clinic patient-intake pipeline: SFTP pickup -> parse/validate -> FHIR R4 mapping -> HAPI sandbox post.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "sftp:up": "docker compose up -d",
+    "sftp:down": "docker compose down",
+    "sftp:logs": "docker compose logs -f sftp",
+    "generate": "tsx src/data/generate.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "csv-parse": "^5.6.0",
+    "dotenv": "^16.4.7",
+    "ssh2-sftp-client": "^11.0.0"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^9.4.0",
+    "@types/node": "^22.10.0",
+    "@types/ssh2-sftp-client": "^9.0.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}

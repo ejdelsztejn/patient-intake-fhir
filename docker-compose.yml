@@ -1,0 +1,18 @@
+# Local SFTP server standing in for a clinic's nightly-drop endpoint.
+# atmoz/sftp chroots the user to /home/<user>; we expose the writable
+# ./sftp/upload folder as /upload inside that jail.
+#
+#   npm run sftp:up      # start
+#   sftp -P 2222 clinic@127.0.0.1   (password: clinicpass)
+#
+services:
+  sftp:
+    image: atmoz/sftp:latest
+    container_name: patient-intake-sftp
+    ports:
+      - "2222:22"
+    volumes:
+      - ./sftp/upload:/home/clinic/upload
+    # user:password:uid:gid  ->  clinic / clinicpass
+    command: clinic:clinicpass:1001:1001
+    restart: unless-stopped
