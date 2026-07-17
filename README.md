@@ -35,7 +35,7 @@ and make writes **idempotent** so re-running never duplicates a patient.
 - [x] **1 — SFTP pickup.** List and download the nightly drop.
 - [x] **2 — Parse + validate.** Normalize at the boundary; invalid rows → rejects file with reasons.
 - [x] **3 — FHIR mapping.** Valid rows → FHIR R4 `Patient` (name, date, phone, gender codes).
-- [ ] **4 — Post + idempotency.** Conditional create keyed on MRN so re-runs don't duplicate.
+- [x] **4 — Post + idempotency.** Conditional create keyed on MRN so re-runs don't duplicate.
 - [ ] **5 — Run report.** Each run logs processed / created / skipped / rejected counts.
 
 ## Quick start
@@ -48,8 +48,13 @@ cp .env.example .env
 
 npm run sftp:up      # start the local SFTP server (Docker)
 npm run generate     # write a synthetic intake CSV into the drop folder
-npm start            # connect over SFTP, list + preview the newest file
+npm start            # SFTP pickup -> parse/validate -> map to FHIR (dry run)
+npm start -- --post  # ...and POST to the FHIR server (idempotent conditional create)
 ```
+
+`npm start` stops at mapping and previews a resource. Add `--post` to actually
+write to `FHIR_BASE_URL` — conditional create keyed on the MRN identifier, so
+re-runs skip patients that already exist instead of duplicating them.
 
 Poke at the SFTP server directly:
 
