@@ -1,11 +1,15 @@
 /**
  * Pipeline entry point.
  *
- * Milestone 1 (current): connect to the clinic SFTP drop, list intake files,
- * and preview the newest one. Later milestones layer on parse/validate ->
- * FHIR mapping -> idempotent post to the HAPI sandbox.
+ * Milestone 1: connect to the clinic SFTP drop, list intake files, download the
+ * newest one. Milestone 2 (current): parse, normalize, and validate that file —
+ * valid rows are held in memory for the FHIR mapper, invalid rows are written to
+ * a rejects CSV. Later milestones layer on FHIR mapping -> idempotent post to
+ * the HAPI sandbox.
  */
+import { join } from "node:path";
 import { withSftp, listIntakeFiles, downloadIntakeFile } from "./sftp/client.js";
+import { runIntake, writeRejectsCsv } from "./intake/index.js";
 import { config } from "./config.js";
 
 async function main(): Promise<void> {
@@ -26,11 +30,26 @@ async function main(): Promise<void> {
 
     const newest = files[files.length - 1]!;
     const contents = await downloadIntakeFile(sftp, newest.name);
-    const preview = contents.split("\n").slice(0, 4).join("\n");
-    console.log(`\nPreview of ${newest.name}:\n${preview}`);
+
+    const { valid, rejects } = runIntake(contents);
+    console.log(`\nParsed ${newest.name}: ${valid.length} valid, ${rejects.length} rejected.`);
+
+    for (const row of valid.slice(0, 3)) {
+      console.log(`  OK  ${row.mrn}  ${row.firstName} ${row.lastName}  ${row.dateOfBirth}  ${row.gender}`);
+    }
+    if (valid.length > 3) console.log(`  ... and ${valid.length - 3} more valid row(s)`);
+
+    if (rejects.length > 0) {
+      const rejectsPath = join("out", `rejects_${newest.name}`);
+      writeRejectsCsv(rejects, rejectsPath);
+      console.log(`\nWrote ${rejects.length} rejected row(s) -> ${rejectsPath}`);
+      for (const reject of rejects.slice(0, 3)) {
+        console.log(`  REJECT row ${reject.rowNumber} (${reject.mrn || "no mrn"}): ${reject.errors}`);
+      }
+    }
   });
 
-  console.log("\nSFTP pickup OK. Next milestone: parse + validate.");
+  console.log("\nParse + validate OK. Next milestone: FHIR R4 mapping.");
 }
 
 main().catch((err) => {

@@ -15,6 +15,7 @@ import { faker } from "@faker-js/faker";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { csvEscape } from "../csv.js";
 
 const HEADERS = [
   "mrn",
@@ -47,10 +48,6 @@ function cleanRow(): Row {
     state: faker.location.state({ abbreviated: true }),
     postal_code: faker.location.zipCode("#####"),
   };
-}
-
-function csvEscape(value: string): string {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
 function toCsv(rows: Row[]): string {
