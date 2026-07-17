@@ -18,5 +18,8 @@ export const config = {
   },
   fhir: {
     baseUrl: required("FHIR_BASE_URL", "https://hapi.fhir.org/baseR4"),
+    // Namespace for the MRN identifier; also the key milestone 4's conditional
+    // create matches on (Patient?identifier=<mrnSystem>|<mrn>).
+    mrnSystem: required("FHIR_MRN_SYSTEM", "urn:clinic:intake:mrn"),
   },
 } as const;

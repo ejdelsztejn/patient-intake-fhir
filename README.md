@@ -32,9 +32,9 @@ and make writes **idempotent** so re-running never duplicates a patient.
 
 - [x] **0 — Scaffold + Docker.** Local SFTP server, TypeScript project, synthetic
       CSV generator, connection smoke test.
-- [ ] **1 — SFTP pickup.** List and download the nightly drop. _(entry point works today)_
-- [ ] **2 — Parse + validate.** Normalize at the boundary; invalid rows → rejects file with reasons.
-- [ ] **3 — FHIR mapping.** Valid rows → FHIR R4 `Patient` (name, date, phone, gender codes).
+- [x] **1 — SFTP pickup.** List and download the nightly drop.
+- [x] **2 — Parse + validate.** Normalize at the boundary; invalid rows → rejects file with reasons.
+- [x] **3 — FHIR mapping.** Valid rows → FHIR R4 `Patient` (name, date, phone, gender codes).
 - [ ] **4 — Post + idempotency.** Conditional create keyed on MRN so re-runs don't duplicate.
 - [ ] **5 — Run report.** Each run logs processed / created / skipped / rejected counts.
 
@@ -69,8 +69,11 @@ npm run sftp:down
 docker-compose.yml     local atmoz/sftp server (the "clinic" drop endpoint)
 sftp/upload/           drop folder, mounted into the container
 src/
-  config.ts            env-backed config (SFTP creds, FHIR base URL)
+  config.ts            env-backed config (SFTP creds, FHIR base URL + MRN system)
+  csv.ts               shared CSV escaping helper
   data/generate.ts     synthetic intake CSV generator (faker)
   sftp/client.ts       ssh2-sftp-client wrapper: list + download
+  intake/              parse → normalize → validate; valid rows + rejects
+  fhir/                map validated rows → FHIR R4 Patient resources
   index.ts             pipeline entry point
 ```

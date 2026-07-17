@@ -2,14 +2,15 @@
  * Pipeline entry point.
  *
  * Milestone 1: connect to the clinic SFTP drop, list intake files, download the
- * newest one. Milestone 2 (current): parse, normalize, and validate that file —
- * valid rows are held in memory for the FHIR mapper, invalid rows are written to
- * a rejects CSV. Later milestones layer on FHIR mapping -> idempotent post to
- * the HAPI sandbox.
+ * newest one. Milestone 2: parse, normalize, and validate that file — valid rows
+ * held in memory, invalid rows written to a rejects CSV. Milestone 3 (current):
+ * map the valid rows to FHIR R4 Patient resources. Later milestones layer on the
+ * idempotent post to the HAPI sandbox.
  */
 import { join } from "node:path";
 import { withSftp, listIntakeFiles, downloadIntakeFile } from "./sftp/client.js";
 import { runIntake, writeRejectsCsv } from "./intake/index.js";
+import { mapPatients } from "./fhir/index.js";
 import { config } from "./config.js";
 
 async function main(): Promise<void> {
@@ -47,9 +48,16 @@ async function main(): Promise<void> {
         console.log(`  REJECT row ${reject.rowNumber} (${reject.mrn || "no mrn"}): ${reject.errors}`);
       }
     }
+
+    const patients = mapPatients(valid);
+    console.log(`\nMapped ${patients.length} FHIR R4 Patient resource(s).`);
+    if (patients[0]) {
+      console.log("Sample resource:");
+      console.log(JSON.stringify(patients[0], null, 2));
+    }
   });
 
-  console.log("\nParse + validate OK. Next milestone: FHIR R4 mapping.");
+  console.log("\nFHIR mapping OK. Next milestone: idempotent post to the HAPI sandbox.");
 }
 
 main().catch((err) => {
