@@ -50,12 +50,14 @@ function todayUtc(): number {
 
 export interface FieldCheck {
   test: (value: string) => boolean;
-  message: string;
+  /** Builds the failure message from the field's display name, so the source
+   *  field name lives in exactly one place (the rule's `displayName`). */
+  message: (displayName: string) => string;
 }
 
 export interface FieldRule {
   field: keyof NormalizedRow;
-  label: string; // source-facing name, used in "<label> is required" messages
+  displayName: string; // source-facing name, interpolated into every message
   required: boolean;
   checks: FieldCheck[];
 }
@@ -63,60 +65,60 @@ export interface FieldRule {
 export const FIELD_RULES: FieldRule[] = [
   {
     field: "mrn",
-    label: "mrn",
+    displayName: "mrn",
     required: true,
     checks: [
-      { test: (v) => MRN_PATTERN.test(v), message: "mrn must be 6-10 alphanumeric characters" },
+      { test: (v) => MRN_PATTERN.test(v), message: (n) => `${n} must be 6-10 alphanumeric characters` },
     ],
   },
-  { field: "firstName", label: "first_name", required: true, checks: [] },
-  { field: "lastName", label: "last_name", required: true, checks: [] },
+  { field: "firstName", displayName: "first_name", required: true, checks: [] },
+  { field: "lastName", displayName: "last_name", required: true, checks: [] },
   {
     field: "dateOfBirth",
-    label: "date_of_birth",
+    displayName: "date_of_birth",
     required: true,
     checks: [
       // Range checks short-circuit to `true` (pass) when the date is unparseable,
       // so an impossible date reports one clear error, not a cascade.
-      { test: (v) => parseIsoDate(v) !== null, message: "date_of_birth must be a valid YYYY-MM-DD date" },
+      { test: (v) => parseIsoDate(v) !== null, message: (n) => `${n} must be a valid YYYY-MM-DD date` },
       {
         test: (v) => {
           const d = parseIsoDate(v);
           return d === null || d <= todayUtc();
         },
-        message: "date_of_birth cannot be in the future",
+        message: (n) => `${n} cannot be in the future`,
       },
       {
         test: (v) => {
           const d = parseIsoDate(v);
           return d === null || d >= MIN_DATE;
         },
-        message: "date_of_birth cannot be before 1900",
+        message: (n) => `${n} cannot be before 1900`,
       },
     ],
   },
   {
     field: "gender",
-    label: "gender",
+    displayName: "gender",
     required: true,
     checks: [
-      { test: (v) => GENDERS.has(v), message: "gender must be one of male, female, other, unknown" },
+      { test: (v) => GENDERS.has(v), message: (n) => `${n} must be one of male, female, other, unknown` },
     ],
   },
   {
     field: "phone",
-    label: "phone",
+    displayName: "phone",
     required: false,
     checks: [
-      { test: (v) => PHONE_PATTERN.test(v), message: "phone must be 10 digits after removing formatting" },
+      { test: (v) => PHONE_PATTERN.test(v), message: (n) => `${n} must be 10 digits after removing formatting` },
     ],
   },
   {
     field: "email",
-    label: "email",
+    displayName: "email",
     required: false,
     checks: [
-      { test: (v) => EMAIL_PATTERN.test(v), message: "email is not a valid email address" },
+      { test: (v) => EMAIL_PATTERN.test(v), message: (n) => `${n} is not a valid email address` },
     ],
   },
 ];

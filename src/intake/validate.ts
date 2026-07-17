@@ -45,7 +45,7 @@ export function validateRow(row: NormalizedRow): ValidationError[] {
 
     if (rule.required) {
       if (value === undefined || value === "") {
-        errors.push({ field: rule.field, message: `${rule.label} is required` });
+        errors.push({ field: rule.field, message: `${rule.displayName} is required` });
         continue;
       }
     } else if (value === undefined) {
@@ -56,7 +56,7 @@ export function validateRow(row: NormalizedRow): ValidationError[] {
 
     for (const check of rule.checks) {
       if (!check.test(value)) {
-        errors.push({ field: rule.field, message: check.message });
+        errors.push({ field: rule.field, message: check.message(rule.displayName) });
       }
     }
   }
