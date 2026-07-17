@@ -3,14 +3,14 @@
  *
  * Milestone 1: connect to the clinic SFTP drop, list intake files, download the
  * newest one. Milestone 2: parse, normalize, and validate that file — valid rows
- * held in memory, invalid rows written to a rejects CSV. Milestone 3 (current):
- * map the valid rows to FHIR R4 Patient resources. Later milestones layer on the
- * idempotent post to the HAPI sandbox.
+ * held in memory, invalid rows written to a rejects CSV. Milestone 3: map the
+ * valid rows to FHIR R4 Patient resources. Milestone 4 (current): idempotently
+ * post them to the FHIR server via conditional create — opt-in with --post.
  */
 import { join } from "node:path";
 import { withSftp, listIntakeFiles, downloadIntakeFile } from "./sftp/client.js";
 import { runIntake, writeRejectsCsv } from "./intake/index.js";
-import { mapPatients } from "./fhir/index.js";
+import { mapPatients, postPatients } from "./fhir/index.js";
 import { config } from "./config.js";
 
 async function main(): Promise<void> {
@@ -51,13 +51,27 @@ async function main(): Promise<void> {
 
     const patients = mapPatients(valid);
     console.log(`\nMapped ${patients.length} FHIR R4 Patient resource(s).`);
-    if (patients[0]) {
-      console.log("Sample resource:");
-      console.log(JSON.stringify(patients[0], null, 2));
+
+    if (!process.argv.includes("--post")) {
+      console.log(`Dry run — pass --post to write to ${config.fhir.baseUrl}. Sample resource:`);
+      if (patients[0]) console.log(JSON.stringify(patients[0], null, 2));
+      return;
+    }
+
+    console.log(`\nPosting to ${config.fhir.baseUrl} (conditional create on MRN) ...`);
+    const summary = await postPatients(patients);
+    console.log(
+      `Posted: ${summary.created} created, ${summary.skipped} skipped, ${summary.failed} failed.`,
+    );
+    for (const r of summary.results.filter((x) => x.outcome === "created").slice(0, 3)) {
+      console.log(`  CREATED ${r.mrn} -> Patient/${r.resourceId ?? "?"}`);
+    }
+    for (const r of summary.results.filter((x) => x.outcome === "failed").slice(0, 5)) {
+      console.log(`  FAIL ${r.mrn}: ${r.error}`);
     }
   });
 
-  console.log("\nFHIR mapping OK. Next milestone: idempotent post to the HAPI sandbox.");
+  console.log("\nDone. Next milestone: run report (processed / created / skipped / rejected).");
 }
 
 main().catch((err) => {

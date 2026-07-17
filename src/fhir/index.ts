@@ -13,5 +13,10 @@ export type {
   HumanName,
   Identifier,
   Patient,
+  PostOutcome,
+  PostResult,
+  PostSummary,
 } from "./types.js";
 export { mapPatient, mapPatients } from "./patient.js";
+export { conditionalCreate } from "./client.js";
+export { postPatients } from "./post.js";

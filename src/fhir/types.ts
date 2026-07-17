@@ -58,3 +58,22 @@ export interface Patient {
   telecom?: ContactPoint[];
   address?: Address[];
 }
+
+/** Outcome of posting one Patient via conditional create. */
+export type PostOutcome = "created" | "skipped" | "failed";
+
+export interface PostResult {
+  mrn: string;
+  outcome: PostOutcome;
+  resourceId?: string; // server-assigned id, from the Location header on create
+  status?: number; // HTTP status, when a response was received
+  error?: string; // reason, when outcome is "failed"
+}
+
+/** Roll-up of a batch post — the seam milestone 5's run report consumes. */
+export interface PostSummary {
+  created: number;
+  skipped: number;
+  failed: number;
+  results: PostResult[];
+}
