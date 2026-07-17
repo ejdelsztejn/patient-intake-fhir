@@ -50,9 +50,19 @@ describe("conditionalCreate", () => {
     expect(calls[0]!.url).toBe("https://fhir.example/base/Patient");
     expect(calls[0]!.init.method).toBe("POST");
     const headers = calls[0]!.init.headers as Record<string, string>;
-    expect(headers["If-None-Exist"]).toBe("identifier=urn:clinic:intake:mrn|MRN559361");
+    // System and value percent-encoded (colons -> %3A); the `|` separator is literal.
+    expect(headers["If-None-Exist"]).toBe("identifier=urn%3Aclinic%3Aintake%3Amrn|MRN559361");
     expect(headers["Content-Type"]).toBe("application/fhir+json");
     expect(JSON.parse(String(calls[0]!.init.body))).toEqual(PATIENT);
+  });
+
+  it("percent-encodes URL-special characters in the identifier search", async () => {
+    const { fn, calls } = scriptedFetch([created()]);
+    const patient: Patient = { resourceType: "Patient", identifier: [{ value: "AB/CD 12" }] };
+    await conditionalCreate(patient, { ...deps(fn), mrnSystem: "urn:clinic:intake:mrn" });
+
+    const headers = calls[0]!.init.headers as Record<string, string>;
+    expect(headers["If-None-Exist"]).toBe("identifier=urn%3Aclinic%3Aintake%3Amrn|AB%2FCD%2012");
   });
 
   it("classifies 201 as created and extracts the resource id from Location", async () => {

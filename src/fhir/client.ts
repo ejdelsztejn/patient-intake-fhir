@@ -36,6 +36,19 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Build the FHIR token search for the conditional-create header. Both the system
+ * and value are percent-encoded so header safety doesn't depend on the upstream
+ * normalizer — a system or MRN containing a URL-special char (space, &, #, /,
+ * CRLF) can't corrupt or silently mis-target the search. The `|` token separator
+ * stays literal. (A literal `|`/`$`/`,` *inside* a value would additionally need
+ * FHIR-level escaping, but MRNs are normalized to [A-Za-z0-9], so that can't
+ * arise here.)
+ */
+function identifierSearch(system: string, value: string): string {
+  return `identifier=${encodeURIComponent(system)}|${encodeURIComponent(value)}`;
+}
+
 async function fetchWithTimeout(
   doFetch: typeof fetch,
   url: string,
@@ -82,7 +95,7 @@ export async function conditionalCreate(patient: Patient, deps: ClientDeps = {})
     headers: {
       "Content-Type": "application/fhir+json",
       Accept: "application/fhir+json",
-      "If-None-Exist": `identifier=${mrnSystem}|${mrn}`,
+      "If-None-Exist": identifierSearch(mrnSystem, mrn),
     },
     body: JSON.stringify(patient),
   };
@@ -96,10 +109,13 @@ export async function conditionalCreate(patient: Patient, deps: ClientDeps = {})
         return { mrn, outcome: "created", status: 201, resourceId: parseResourceId(response) };
       }
       if (response.status === 200) {
+        // resourceId is best-effort on a skip: populated only if the server
+        // returns a Location/Content-Location. We don't depend on it.
         return { mrn, outcome: "skipped", status: 200, resourceId: parseResourceId(response) };
       }
 
       if (RETRYABLE_STATUS.has(response.status) && attempt < MAX_ATTEMPTS) {
+        // Fixed backoff; a high-volume feed would honor a 429 Retry-After header.
         lastError = `HTTP ${response.status}`;
         await sleep(backoffMs);
         continue;
