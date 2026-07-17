@@ -40,7 +40,7 @@ describe("mapPatient", () => {
 
   it("includes only the contact points that are present", () => {
     expect(mapPatient(patientRow({ email: undefined })).telecom).toEqual([
-      { system: "phone", value: "7153750038" },
+      { system: "phone", value: "+17153750038" }, // E.164
     ]);
     expect(mapPatient(patientRow({ phone: undefined })).telecom).toEqual([
       { system: "email", value: "jamar16@hotmail.com" },

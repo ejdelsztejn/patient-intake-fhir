@@ -45,7 +45,7 @@ describe("CSV -> FHIR pipeline", () => {
         gender: "male",
         birthDate: "1935-02-17",
         telecom: [
-          { system: "phone", value: "7153750038" }, // formatting stripped, order fixed
+          { system: "phone", value: "+17153750038" }, // stripped to 10 digits, emitted as E.164
           { system: "email", value: "jamar16@hotmail.com" }, // casefolded
         ],
         address: [
