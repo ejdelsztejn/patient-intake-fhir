@@ -24,7 +24,15 @@ async function main(): Promise<void> {
     const files = await listIntakeFiles(sftp);
 
     if (files.length === 0) {
+      // Still leave a report: "job ran, nothing arrived" must be distinguishable
+      // from "job didn't run" for anything watching for a nightly artifact.
       console.log(`No CSV files in ${config.sftp.remoteDir}. Run "npm run generate" first.`);
+      const report = buildRunReport(null, { valid: [], rejects: [] });
+      const reportPath = join("out", "report_no-intake.json");
+      mkdirSync("out", { recursive: true });
+      writeFileSync(reportPath, JSON.stringify(report, null, 2) + "\n", "utf-8");
+      console.log(`\n${formatRunReport(report)}`);
+      console.log(`\nReport written -> ${reportPath}`);
       return false;
     }
 

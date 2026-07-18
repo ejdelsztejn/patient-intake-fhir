@@ -8,7 +8,7 @@ import type { PatientRow, RejectEntry } from "./intake/index.js";
 import type { PostSummary } from "./fhir/index.js";
 
 export interface RunReport {
-  sourceFile: string;
+  sourceFile: string | null; // null when the drop was empty (no file to report on)
   processed: number; // total data rows read from the CSV
   valid: number; // passed validation (== resources mapped)
   rejected: number; // failed validation, routed to the rejects CSV
@@ -17,7 +17,7 @@ export interface RunReport {
 }
 
 export function buildRunReport(
-  sourceFile: string,
+  sourceFile: string | null,
   intake: { valid: PatientRow[]; rejects: RejectEntry[] },
   postSummary?: PostSummary,
 ): RunReport {
@@ -39,7 +39,7 @@ export function buildRunReport(
 
 export function formatRunReport(report: RunReport): string {
   const lines = [
-    `Run report — ${report.sourceFile}`,
+    `Run report — ${report.sourceFile ?? "(no intake file)"}`,
     `  processed: ${report.processed}`,
     `  valid:     ${report.valid}`,
     `  rejected:  ${report.rejected}`,

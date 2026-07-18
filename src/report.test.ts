@@ -47,6 +47,15 @@ describe("buildRunReport", () => {
     expect(report).toEqual({ sourceFile: "intake_2026-07-14.csv", processed: 3, valid: 2, rejected: 1 });
   });
 
+  it("records an empty drop as 0 processed with a null source file", () => {
+    expect(buildRunReport(null, { valid: [], rejects: [] })).toEqual({
+      sourceFile: null,
+      processed: 0,
+      valid: 0,
+      rejected: 0,
+    });
+  });
+
   it("distinguishes a run that posted zero from a dry run", () => {
     expect(buildRunReport("f.csv", { valid: [], rejects: [] }, summary(0, 0, 0)).posted).toEqual({
       created: 0,
@@ -81,6 +90,19 @@ describe("formatRunReport", () => {
         "  processed: 3",
         "  valid:     2",
         "  rejected:  1",
+        "  posted:    (dry run — not posted; pass --post to write)",
+      ].join("\n"),
+    );
+  });
+
+  it("renders the empty-drop block with a no-file label", () => {
+    const text = formatRunReport(buildRunReport(null, { valid: [], rejects: [] }));
+    expect(text).toBe(
+      [
+        "Run report — (no intake file)",
+        "  processed: 0",
+        "  valid:     0",
+        "  rejected:  0",
         "  posted:    (dry run — not posted; pass --post to write)",
       ].join("\n"),
     );
