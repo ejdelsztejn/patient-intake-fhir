@@ -2,6 +2,7 @@
   "name": "patient-intake-fhir",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Simulated clinic patient-intake pipeline: SFTP pickup -> parse/validate -> FHIR R4 mapping -> HAPI sandbox post.",
   "engines": {
