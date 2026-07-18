@@ -36,7 +36,7 @@ and make writes **idempotent** so re-running never duplicates a patient.
 - [x] **2 — Parse + validate.** Normalize at the boundary; invalid rows → rejects file with reasons.
 - [x] **3 — FHIR mapping.** Valid rows → FHIR R4 `Patient` (name, date, phone, gender codes).
 - [x] **4 — Post + idempotency.** Conditional create keyed on MRN so re-runs don't duplicate.
-- [ ] **5 — Run report.** Each run logs processed / created / skipped / rejected counts.
+- [x] **5 — Run report.** Each run logs processed / created / skipped / rejected counts.
 
 ## Quick start
 
@@ -79,6 +79,7 @@ src/
   data/generate.ts     synthetic intake CSV generator (faker)
   sftp/client.ts       ssh2-sftp-client wrapper: list + download
   intake/              parse → normalize → validate; valid rows + rejects
-  fhir/                map validated rows → FHIR R4 Patient resources
+  fhir/                map validated rows → FHIR R4 Patient + idempotent post
+  report.ts            end-of-run summary (counts → console + out/report_*.json)
   index.ts             pipeline entry point
 ```

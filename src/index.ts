@@ -4,24 +4,36 @@
  * Milestone 1: connect to the clinic SFTP drop, list intake files, download the
  * newest one. Milestone 2: parse, normalize, and validate that file — valid rows
  * held in memory, invalid rows written to a rejects CSV. Milestone 3: map the
- * valid rows to FHIR R4 Patient resources. Milestone 4 (current): idempotently
- * post them to the FHIR server via conditional create — opt-in with --post.
+ * valid rows to FHIR R4 Patient resources. Milestone 4: idempotently post them
+ * via conditional create — opt-in with --post. Milestone 5 (current): close each
+ * run with a processed/valid/rejected/created/skipped/failed report.
  */
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { withSftp, listIntakeFiles, downloadIntakeFile } from "./sftp/client.js";
 import { runIntake, writeRejectsCsv } from "./intake/index.js";
 import { mapPatients, postPatients } from "./fhir/index.js";
+import type { PostSummary } from "./fhir/index.js";
+import { buildRunReport, formatRunReport } from "./report.js";
 import { config } from "./config.js";
 
 async function main(): Promise<void> {
   console.log(`Connecting to SFTP ${config.sftp.host}:${config.sftp.port} as ${config.sftp.username} ...`);
 
-  await withSftp(async (sftp) => {
+  const hadPostFailures = await withSftp(async (sftp) => {
     const files = await listIntakeFiles(sftp);
 
     if (files.length === 0) {
+      // Still leave a report: "job ran, nothing arrived" must be distinguishable
+      // from "job didn't run" for anything watching for a nightly artifact.
       console.log(`No CSV files in ${config.sftp.remoteDir}. Run "npm run generate" first.`);
-      return;
+      const report = buildRunReport(null, { valid: [], rejects: [] });
+      const reportPath = join("out", "report_no-intake.json");
+      mkdirSync("out", { recursive: true });
+      writeFileSync(reportPath, JSON.stringify(report, null, 2) + "\n", "utf-8");
+      console.log(`\n${formatRunReport(report)}`);
+      console.log(`\nReport written -> ${reportPath}`);
+      return false;
     }
 
     console.log(`\nFound ${files.length} intake file(s):`);
@@ -52,26 +64,36 @@ async function main(): Promise<void> {
     const patients = mapPatients(valid);
     console.log(`\nMapped ${patients.length} FHIR R4 Patient resource(s).`);
 
-    if (!process.argv.includes("--post")) {
-      console.log(`Dry run — pass --post to write to ${config.fhir.baseUrl}. Sample resource:`);
-      if (patients[0]) console.log(JSON.stringify(patients[0], null, 2));
-      return;
+    let summary: PostSummary | undefined;
+    if (process.argv.includes("--post")) {
+      console.log(`\nPosting to ${config.fhir.baseUrl} (conditional create on MRN) ...`);
+      summary = await postPatients(patients);
+      for (const r of summary.results.filter((x) => x.outcome === "created").slice(0, 3)) {
+        console.log(`  CREATED ${r.mrn} -> Patient/${r.resourceId ?? "?"}`);
+      }
+      for (const r of summary.results.filter((x) => x.outcome === "failed").slice(0, 5)) {
+        console.log(`  FAIL ${r.mrn}: ${r.error}`);
+      }
+    } else {
+      console.log(`Dry run — pass --post to write to ${config.fhir.baseUrl}.`);
     }
 
-    console.log(`\nPosting to ${config.fhir.baseUrl} (conditional create on MRN) ...`);
-    const summary = await postPatients(patients);
-    console.log(
-      `Posted: ${summary.created} created, ${summary.skipped} skipped, ${summary.failed} failed.`,
-    );
-    for (const r of summary.results.filter((x) => x.outcome === "created").slice(0, 3)) {
-      console.log(`  CREATED ${r.mrn} -> Patient/${r.resourceId ?? "?"}`);
-    }
-    for (const r of summary.results.filter((x) => x.outcome === "failed").slice(0, 5)) {
-      console.log(`  FAIL ${r.mrn}: ${r.error}`);
-    }
+    // Close the run with the report — always, dry run or posted alike.
+    const report = buildRunReport(newest.name, { valid, rejects }, summary);
+    const reportPath = join("out", `report_${newest.name.replace(/\.csv$/i, "")}.json`);
+    mkdirSync("out", { recursive: true });
+    writeFileSync(reportPath, JSON.stringify(report, null, 2) + "\n", "utf-8");
+
+    console.log(`\n${formatRunReport(report)}`);
+    console.log(`\nReport written -> ${reportPath}`);
+
+    return (summary?.failed ?? 0) > 0;
   });
 
-  console.log("\nDone. Next milestone: run report (processed / created / skipped / rejected).");
+  if (hadPostFailures) {
+    console.error("\nSome resources failed to post — exiting non-zero.");
+    process.exitCode = 1;
+  }
 }
 
 main().catch((err) => {
