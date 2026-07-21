@@ -29,7 +29,7 @@ Built in TypeScript, with Claude Code.
   scheduler can alert.
 - **Types as guarantees** — validation narrows `NormalizedRow → PatientRow`, so
   downstream stages are structurally unable to see unvalidated data.
-- **Tested** — 46 unit + integration tests; the network and filesystem seams are
+- **Tested** — 48 unit + integration tests; the network and filesystem seams are
   injected, so the suite runs offline and deterministically (`npm test`).
 
 ## Architecture
@@ -92,7 +92,7 @@ sftp -P 2222 clinic@127.0.0.1     # password: clinicpass
 Run the tests (offline — no server needed):
 
 ```bash
-npm test         # 46 unit + integration tests
+npm test         # 48 unit + integration tests
 npm run typecheck
 ```
 
@@ -144,6 +144,33 @@ $ npm start -- --post            # same file again — nothing new
   skipped:   17                  # every patient already exists
   failed:    0
 ```
+
+## Known production considerations
+
+This is a portfolio demonstration on synthetic data. A production deployment
+would need the following — called out deliberately, since knowing what's *not*
+here is part of the design:
+
+- **Create-only semantics (by design).** The conditional create prevents
+  duplicate `Patient`s, but a *changed* record with an existing MRN is **skipped,
+  not updated** — this is modeled as a new-patient intake feed, not a
+  reconciliation feed. Supporting updates would mean conditional *update*
+  (`PUT Patient?identifier=…`) with a change-detection or last-write-wins policy.
+- **File-level checkpointing.** Idempotency here is *record-level* (per MRN). The
+  runner always processes the newest file and does not claim, archive, or record
+  which files it has handled, so a re-run reprocesses the same file (safe, but
+  redundant). A real nightly feed would move processed files to an archive prefix
+  or track processed filenames to get *file-level* exactly-once handling.
+- **PHI-safe logging & retention.** Console output and the rejects file currently
+  include names and MRNs. With real PHI these would need redacted/structured
+  logs, encrypted-at-rest storage for reject/report artifacts, and a retention
+  policy — none of which apply to synthetic data, but all of which a healthcare
+  deployment requires.
+- **Credentials & transport hardening.** The demo uses SFTP password auth via
+  env vars; production would use SSH key auth and a secrets manager.
+- **Failure handling at scale.** Transient errors get one bounded retry; a
+  high-volume feed would honor `Retry-After` on 429s and route persistent
+  failures to a dead-letter queue for reprocessing.
 
 ## Layout
 
